@@ -1306,3 +1306,35 @@ I am designed to assist with wellness tracking, symptom guidance, healthy habits
     followUp: ["Check Symptoms", "Healthy Diet Plan", "Medication Info", "Emergency Guidance"]
   };
 }
+
+export async function getAIResponse(queryText: string, history: any[] = []): Promise<AIResponse> {
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: queryText,
+        history: history.map(msg => ({
+          sender: msg.sender,
+          text: msg.text
+        }))
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && !data.error) {
+        return data as AIResponse;
+      }
+    }
+    
+    console.warn('API call failed or returned error, falling back to local queryAI');
+  } catch (error) {
+    console.error('Error calling chat API, falling back to local queryAI:', error);
+  }
+  
+  return queryAI(queryText);
+}
+

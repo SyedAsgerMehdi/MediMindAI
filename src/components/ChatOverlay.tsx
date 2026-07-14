@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { queryAI, AIResponse } from '../utils/aiEngine';
+import { queryAI, getAIResponse, AIResponse } from '../utils/aiEngine';
 import { 
   MessageSquare, X, Maximize2, Minimize2, Trash2, Send, 
   Volume2, VolumeX, Mic, MicOff, Paperclip, Image, 
@@ -185,7 +185,7 @@ export default function ChatOverlay() {
     
     await new Promise((resolve) => setTimeout(resolve, 1200));
     
-    const response = queryAI(queryText);
+    const response = await getAIResponse(queryText, []);
     const aiMsg: Message = {
       id: Math.random().toString(),
       sender: 'ai',
@@ -334,7 +334,7 @@ export default function ChatOverlay() {
         };
       }
     } else {
-      response = queryAI(queryText);
+      response = await getAIResponse(queryText, messages);
     }
     
     const aiMsg: Message = {
