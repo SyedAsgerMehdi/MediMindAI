@@ -1,6 +1,20 @@
 # MediMind AI 🩺🤖
 
 MediMind AI is a modern AI-powered healthcare chatbot built using **Next.js**. It enables users to ask general health-related questions and receive AI-generated responses through a clean, responsive, and intuitive interface.
+## 🏗️ Architecture
+
+```mermaid
+graph TD
+    A[User's Browser] --> B[React UI Modules]
+    B -->|Symptom checker, nutrition,<br/>fitness, mental health, etc.| C[Next.js API Route]
+    C --> D[AI API / LLM Provider]
+    D --> C
+    C --> B
+    A --> E[Browser Local Storage]
+    E -->|Chat history, no server-side storage| A
+```
+
+The app is a Next.js frontend where each health module (symptom checker, nutrition, etc.) sends the user's query to an internal API route. That route formats the prompt and calls the AI provider, then returns the response to the UI. Chat history stays entirely in the browser's local storage — nothing is persisted server-side.
 
 ## ✨ Features
 - 🤖 AI-powered healthcare chatbot
