@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { queryAI, getAIResponse, AIResponse } from '../utils/aiEngine';
@@ -19,6 +18,8 @@ interface Message {
   followUp?: string[];
   attachmentName?: string;
   attachmentType?: 'image' | 'file';
+  urgencyLevel?: string;
+  urgencyMessage?: string;
 }
 
 interface SavedChat {
@@ -119,7 +120,6 @@ export default function ChatOverlay() {
         // Clear current screen messages to start a fresh thread
         setMessages([]);
         setActiveChatId(null);
-
         // ONLY trigger automatic info submission if category is "Symptom Checker"
         if (chatTriggerCategory === "Symptom Checker") {
           handleSendTriggerMessage(chatTriggerMsg, chatTriggerCategory);
@@ -127,7 +127,6 @@ export default function ChatOverlay() {
           // Otherwise, start a fresh isolated session with a tailored welcome message and wait for user questions
           const newId = Date.now().toString();
           setActiveChatId(newId);
-
           const welcomeMsg: Message = {
             id: 'welcome-' + chatTriggerCategory,
             sender: 'ai',
@@ -137,7 +136,6 @@ export default function ChatOverlay() {
             sources: [],
             followUp: getFollowUpForCategory(chatTriggerCategory)
           };
-
           setMessages([welcomeMsg]);
           
           setSavedChats((prevChats) => {
@@ -151,11 +149,9 @@ export default function ChatOverlay() {
             localStorage.setItem('medimind_chats', JSON.stringify(updated));
             return updated;
           });
-
           // Speak welcoming prompt if enabled
           speakText(welcomeMsg.text);
         }
-
         setChatTriggerMsg('');
         setChatTriggerCategory('');
       } else {
@@ -193,7 +189,9 @@ export default function ChatOverlay() {
       timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
       disclaimer: response.disclaimer,
       sources: response.sources,
-      followUp: response.followUp
+      followUp: response.followUp,
+      urgencyLevel: (response as any).urgencyLevel,
+      urgencyMessage: (response as any).urgencyMessage
     };
     
     const finalMessages = [userMsg, aiMsg];
@@ -344,7 +342,9 @@ export default function ChatOverlay() {
       timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
       disclaimer: response.disclaimer,
       sources: response.sources,
-      followUp: response.followUp
+      followUp: response.followUp,
+      urgencyLevel: (response as any).urgencyLevel,
+      urgencyMessage: (response as any).urgencyMessage
     };
     
     const finalMessages = [...updatedMessages, aiMsg];
@@ -446,7 +446,7 @@ export default function ChatOverlay() {
   const SUGGESTION_CHIPS = [
     { label: 'Check Symptoms', icon: '🩺' },
     { label: 'Healthy Diet Plan', icon: '🥗' },
-    { label: 'Fitness Tips', icon: '🏋️‍♂️' },
+    { label: 'Fitness Tips', icon: '🏋️♂️' },
     { label: 'Medication Info', icon: '💊' },
     { label: 'Mental Wellness', icon: '🧠' },
     { label: 'Emergency Guidance', icon: '🚨' }
@@ -561,7 +561,6 @@ export default function ChatOverlay() {
                   <p className="text-[10px] text-muted-foreground">Intelligent Healthcare Companion</p>
                 </div>
               </div>
-
               {/* Window Controls */}
               <div className="flex items-center gap-2">
                 {/* Voice Output Toggle */}
@@ -577,7 +576,6 @@ export default function ChatOverlay() {
                 >
                   {voiceOutputEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                 </button>
-
                 {/* Clear Current Messages */}
                 {messages.length > 0 && (
                   <button
@@ -588,7 +586,6 @@ export default function ChatOverlay() {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
-
                 {/* Expand / Minimize Window Toggle */}
                 <button
                   onClick={() => setIsExpanded(!isExpanded)}
@@ -597,7 +594,6 @@ export default function ChatOverlay() {
                 >
                   {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </button>
-
                 {/* Close Overlay */}
                 <button
                   onClick={() => {
@@ -638,7 +634,6 @@ export default function ChatOverlay() {
                     }`}>
                       {msg.sender === 'user' ? <User className="w-4 h-4" /> : <Brain className="w-4 h-4" />}
                     </div>
-
                     {/* Bubble Content */}
                     <div className="space-y-1">
                       <div className={`p-3 rounded-2xl text-xs leading-relaxed transition-colors ${
@@ -654,7 +649,6 @@ export default function ChatOverlay() {
                             <span className="truncate max-w-[150px]">{msg.attachmentName}</span>
                           </div>
                         )}
-
                         {/* Rendering simulated Markdown format */}
                         {msg.sender === 'ai' ? (
                           <div className="space-y-2">
@@ -692,7 +686,13 @@ export default function ChatOverlay() {
                           <p>{msg.text}</p>
                         )}
                       </div>
-
+                      {/* Emergency urgency banner */}
+                      {msg.sender === 'ai' && msg.urgencyLevel === 'emergency' && (
+                        <div className="p-2.5 rounded-xl bg-red-600 border border-red-700 text-white text-[11px] font-semibold leading-snug flex gap-1.5 items-center animate-pulse">
+                          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                          <span>{msg.urgencyMessage || 'This may be a medical emergency. Please seek immediate care.'}</span>
+                        </div>
+                      )}
                       {/* AI Medical warning box */}
                       {msg.sender === 'ai' && msg.disclaimer && (
                         <div className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] leading-snug flex gap-1.5">
@@ -700,7 +700,6 @@ export default function ChatOverlay() {
                           <span>{msg.disclaimer}</span>
                         </div>
                       )}
-
                       {/* References list */}
                       {msg.sender === 'ai' && msg.sources && msg.sources.length > 0 && (
                         <div className="text-[9px] text-muted-foreground flex gap-1 mt-1 pl-1">
@@ -708,7 +707,6 @@ export default function ChatOverlay() {
                           <span className="italic">{msg.sources.join(', ')}</span>
                         </div>
                       )}
-
                       {/* Suggested Follow-Ups */}
                       {msg.sender === 'ai' && msg.followUp && msg.followUp.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-2 pl-1">
@@ -723,7 +721,6 @@ export default function ChatOverlay() {
                           ))}
                         </div>
                       )}
-
                       {/* Time timestamp */}
                       <p className={`text-[9px] text-muted-foreground/80 ${msg.sender === 'user' ? 'text-right' : 'text-left'}`}>
                         {msg.timestamp}
@@ -732,7 +729,6 @@ export default function ChatOverlay() {
                   </div>
                 ))
               )}
-
               {/* Thinking Indicator */}
               {isThinking && (
                 <div className="flex gap-3 max-w-[80%] mr-auto">
@@ -810,7 +806,6 @@ export default function ChatOverlay() {
                 accept="image/*" 
                 className="hidden" 
               />
-
               {/* Attach File Icon */}
               <button
                 onClick={triggerFileUpload}
@@ -819,7 +814,6 @@ export default function ChatOverlay() {
               >
                 <Paperclip className="w-4 h-4" />
               </button>
-
               {/* Attach Image Icon */}
               <button
                 onClick={triggerImageUpload}
@@ -828,7 +822,6 @@ export default function ChatOverlay() {
               >
                 <Image className="w-4 h-4" />
               </button>
-
               {/* Main Input Text Box */}
               <input
                 type="text"
@@ -838,7 +831,6 @@ export default function ChatOverlay() {
                 placeholder={attachmentType ? "Add query or click send..." : "Ask a medical question..."}
                 className="flex-1 min-w-0 bg-background border border-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary transition-colors text-foreground"
               />
-
               {/* Mic Icon */}
               <button
                 onClick={toggleVoiceInput}
@@ -851,7 +843,6 @@ export default function ChatOverlay() {
               >
                 {voiceInputActive ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>
-
               {/* Send Icon */}
               <button
                 onClick={() => {
@@ -867,7 +858,6 @@ export default function ChatOverlay() {
                 <Send className="w-4 h-4" />
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -906,7 +896,7 @@ function getWelcomeMessageForCategory(category: string): string {
     case 'Mental Health Support':
       return `### Mental Health Assistant 🧠\n\nHello! I am here to provide strategies for stress reduction, panic relief, and sleep hygiene.\n\nAsk me a specific question, for example:\n* *"How can I relieve sudden anxiety?"*\n* *"What are some tips to fall asleep faster?"*\n* *"How do I recover from burnout?"*`;
     case 'Fitness Recommendations':
-      return `### Fitness Advisor 🏋️‍♂️\n\nHello! I can recommend weekly exercise divisions, home routines, or stretches.\n\nAsk me a specific question, for example:\n* *"Give me a 15-minute home workout."*\n* *"What are stretches for lower back pain?"*\n* *"Explain gym strength training splits."*`;
+      return `### Fitness Advisor 🏋️♂️\n\nHello! I can recommend weekly exercise divisions, home routines, or stretches.\n\nAsk me a specific question, for example:\n* *"Give me a 15-minute home workout."*\n* *"What are stretches for lower back pain?"*\n* *"Explain gym strength training splits."*`;
     case 'Disease Awareness':
       return `### Disease Awareness & Prevention 🩺\n\nHello! I can explain chronic disease prevention metrics, risk factors, and health screenings.\n\nAsk me a specific question, for example:\n* *"How can I prevent diabetes?"*\n* *"What are the risk factors for heart disease?"*\n* *"Tell me about hypertension warning levels."*`;
     case 'First Aid Guidance':
