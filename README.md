@@ -48,6 +48,8 @@ Run the development server:
 
 bash
 npm run dev
+📸 Screenshots
+(Add 2–3 screenshots of the chatbot UI and API response flow here — recruiters love visuals!)
 
 🎯 Why This Project Matters
 Demonstrates AI integration skills with real-world APIs.
@@ -62,6 +64,8 @@ Aligns with data science & AI career goals.
 Add user authentication for personalized sessions.
 
 Expand to multi-language support.
+
+Deploy on Vercel/Netlify for live demo access.
 
 👨‍💻 Author
 Syed Asger Mehdi  
