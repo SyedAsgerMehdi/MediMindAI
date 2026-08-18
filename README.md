@@ -1,77 +1,67 @@
-# MediMind AI 🩺🤖
+🧠 MediMindAI – AI-Powered Medical Chatbot
+📌 Overview
+MediMindAI is an intelligent medical chatbot built with Google Gemini API and a local fallback model. It provides reliable, AI-driven responses to healthcare queries while ensuring secure API key management and modular architecture.
 
-MediMind AI is a modern AI-powered healthcare chatbot built using **Next.js**. It enables users to ask general health-related questions and receive AI-generated responses through a clean, responsive, and intuitive interface.
-## 🏗️ Architecture
+🚀 Features
+🔗 Gemini API Integration – Securely connects to Google’s Gemini for advanced AI responses.
 
-```mermaid
-graph TD
-    A[User's Browser] --> B[React UI Modules]
-    B -->|Symptom checker, nutrition,<br/>fitness, mental health, etc.| C[Next.js API Route]
-    C --> D[AI API / LLM Provider]
-    D --> C
-    C --> B
-    A --> E[Browser Local Storage]
-    E -->|Chat history, no server-side storage| A
-```
+🛡️ Local Fallback – Ensures chatbot availability even if the API fails.
 
-The app is a Next.js frontend where each health module (symptom checker, nutrition, etc.) sends the user's query to an internal API route. That route formats the prompt and calls the AI provider, then returns the response to the UI. Chat history stays entirely in the browser's local storage — nothing is persisted server-side.
+⚙️ Backend API Routes – Built with TypeScript for clean and scalable endpoints.
 
-## ✨ Features
-- 🤖 AI-powered healthcare chatbot
-- 💬 Interactive real-time chat interface
-- 📱 Fully responsive design
-- ⚡ Fast performance with Next.js
-- 🎨 Modern and user-friendly UI
-- 🔒 Privacy-focused healthcare assistant
+🔒 Secure Environment Variables – API keys stored in .env.local (never exposed).
 
-## 🛠️ Tech Stack
-- Next.js
-- React.js
-- TypeScript
-- Tailwind CSS
-- AI API Integration
-- Vercel (Deployment)
+🎨 Modern UI/UX – Simple, responsive interface for seamless interaction.
 
-## 🚀 Getting Started
+🛠️ Tech Stack
+Frontend: Next.js, React
 
-1. Clone the repository
-   ```bash
-   git clone <repository-url>
-   ```
+Backend: Node.js, TypeScript
 
-2. Install dependencies
-   ```bash
-   npm install
-   ```
+AI Integration: Google Gemini API (@google/generative-ai)
 
-3. Run the development server
-   ```bash
-   npm run dev
-   ```
+Environment Management: .env.local
 
-4. Open your browser
-   ```
-   http://localhost:3000
-   ```
+Version Control: GitHub
 
-## 📂 Project Structure
+📂 Project Structure
+Code
+src/
+ ├── app/api/chat/route.ts   # API route handling chatbot requests
+ ├── lib/gemini.ts           # Gemini client setup
+ └── components/...          # UI components
+.env.local                   # Environment variables (ignored by Git)
+⚡ Getting Started
+Clone the repo:
 
-```
-app/
-components/
-public/
-lib/
-styles/
-```
+bash
+git clone https://github.com/SyedAsgerMehdi/MediMindAI.git
+Install dependencies:
 
-## 🌐 Live Demo
+bash
+npm install
+Add your Gemini API key in .env.local:
 
-https://medi-mind-ai-62dx.vercel.app/
+Code
+GEMINI_API_KEY=your_api_key_here
+Run the development server:
 
-## 📌 Disclaimer
+bash
+npm run dev
 
-MediMind AI is intended for educational and informational purposes only. It does not replace professional medical advice, diagnosis, or treatment.
+🎯 Why This Project Matters
+Demonstrates AI integration skills with real-world APIs.
 
-## 👨‍💻 Author
+Showcases secure coding practices (environment variables, modular design).
 
-**Syed Asger Mehdi**
+Highlights problem-solving ability (fallback logic for reliability).
+
+Aligns with data science & AI career goals.
+
+📈 Future Improvements
+Add user authentication for personalized sessions.
+
+Expand to multi-language support.
+
+👨‍💻 Author
+Syed Asger Mehdi  
