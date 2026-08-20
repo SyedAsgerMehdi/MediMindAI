@@ -29,6 +29,14 @@ interface SavedChat {
   date: string;
 }
 
+interface ChatAttachment {
+  name: string;
+  type: 'image' | 'file';
+  imageBase64?: string;
+  imageMimeType?: string;
+  fileTextContent?: string;
+}
+
 export default function ChatOverlay() {
   const { 
     isChatOpen, 
@@ -54,6 +62,9 @@ export default function ChatOverlay() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [attachmentType, setAttachmentType] = useState<'image' | 'file' | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [imageMimeType, setImageMimeType] = useState<string | null>(null);
+  const [fileTextContent, setFileTextContent] = useState<string | null>(null);
   
   // Chat History
   const [savedChats, setSavedChats] = useState<SavedChat[]>([]);
@@ -282,7 +293,7 @@ export default function ChatOverlay() {
   };
 
   // Handle Send Message
-  const handleSendMessage = async (text: string, mockAttachment?: { name: string, type: 'image' | 'file' }) => {
+  const handleSendMessage = async (text: string, mockAttachment?: ChatAttachment) => {
     const queryText = text.trim();
     if (!queryText && !mockAttachment) return;
     
@@ -302,6 +313,9 @@ export default function ChatOverlay() {
     setInputText('');
     setSelectedFile(null);
     setSelectedImage(null);
+    setImageBase64(null);
+    setImageMimeType(null);
+    setFileTextContent(null);
     setAttachmentType(null);
     
     // Save state
@@ -316,24 +330,97 @@ export default function ChatOverlay() {
     // 3. Get AI Response
     let response: AIResponse;
     if (mockAttachment) {
-      if (mockAttachment.type === 'image') {
-        response = {
-          content: `### Image Report Scanned Successfully 🔍\n\nI have analyzed the uploaded image **"${mockAttachment.name}"**.\n\n* **Identified**: Dermatological rash/inflammation.\n* **Analysis**: Shows localized redness with mild dry patch scaling. Typically matches **Contact Dermatitis** or mild eczema.\n* **Immediate Care**: Apply an over-the-counter hydrocortisone cream (0.5% - 1%) and a thick barrier moisturizer (like Cerave). Avoid scratching and harsh fragranced soaps.\n\nIf the redness spreads, feels hot to the touch, or causes severe pain, consult a doctor immediately.`,
-          disclaimer: "Image scanning is an experimental AI helper tool and cannot replace a dermatologist's direct physical biopsy or inspection.",
-          sources: ["American Academy of Dermatology (AAD) - Dermatitis Guide"],
-          followUp: ["Contact Dermatitis triggers", "Eczema soothing tips", "Medication Info"]
-        };
+      if (mockAttachment.type === 'image' && mockAttachment.imageBase64 && mockAttachment.imageMimeType) {
+        // Send image to Gemini Vision for real analysis
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: queryText || 'Please analyze this medical image and provide relevant health guidance.',
+              history: messages.map(m => ({ sender: m.sender, text: m.text })),
+              imageBase64: mockAttachment.imageBase64,
+              imageMimeType: mockAttachment.imageMimeType
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && !data.error) {
+              response = data as AIResponse;
+            } else {
+              throw new Error(data.error || 'API error');
+            }
+          } else {
+            throw new Error('API request failed');
+          }
+        } catch {
+          response = await getAIResponse(
+            queryText || `Uploaded medical image: ${mockAttachment.name}. Please analyze and provide relevant health guidance.`,
+            messages
+          );
+        }
+      } else if (mockAttachment.type === 'file') {
+        // For file uploads, pass file name + any extracted text content
+        const fileContext = mockAttachment.fileTextContent
+          ? `[Document: "${mockAttachment.name}"]\n${mockAttachment.fileTextContent}`
+          : `I have uploaded a medical document named "${mockAttachment.name}". ${queryText || 'Please analyze and provide relevant health guidance.'}`;
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: queryText || 'Please analyze this medical document and provide relevant health guidance.',
+              history: messages.map(m => ({ sender: m.sender, text: m.text })),
+              fileTextContent: mockAttachment.fileTextContent || null,
+              fileName: mockAttachment.name
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && !data.error) {
+              response = data as AIResponse;
+            } else {
+              throw new Error(data.error || 'API error');
+            }
+          } else {
+            throw new Error('API request failed');
+          }
+        } catch {
+          response = await getAIResponse(fileContext, messages);
+        }
       } else {
-        response = {
-          content: `### Laboratory Report Summary 📄\n\nI have completed the scanning of your PDF document **"${mockAttachment.name}"**.\n\n* **Document Detected**: General blood work / CBC panel.\n* **Key Metrics extracted**:\n  * **Hemoglobin**: 14.2 g/dL (Normal)\n  * **WBC Count**: 11,500 cells/mcL (Slightly Elevated - indicates active immune response / minor infection)\n  * **Vitamin D**: 18 ng/mL (Deficient - optimal is > 30 ng/mL)\n* **Recommendations**: Discuss Vitamin D3 supplementation (1000-2000 IU daily) with your physician. Rest and hydrate to support the immune system.`,
-          disclaimer: "Extracted laboratory insights must be verified by a medical doctor who understands your comprehensive health history.",
-          sources: ["Quest Diagnostics Reference Ranges", "NIH Vitamin D Guidelines"],
-          followUp: ["How to raise Vitamin D levels?", "White blood cell count meaning", "Check Symptoms"]
-        };
+        response = await getAIResponse(
+          queryText || `Analyze the uploaded medical attachment: ${mockAttachment.name}`,
+          messages
+        );
       }
     } else {
-      response = await getAIResponse(queryText, messages);
+      const linkMatch = queryText.match(/https?:\/\/[^\s]+/i);
+      if (linkMatch) {
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: queryText,
+              history: messages.map(m => ({ sender: m.sender, text: m.text })),
+              url: linkMatch[0].replace(/[),.;!?]+$/, '')
+            })
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || 'API error');
+          response = data as AIResponse;
+        } catch {
+          response = await getAIResponse(
+            `${queryText}\nPlease use the linked source as context and explain only what is relevant to my health question.`,
+            messages
+          );
+        }
+      } else {
+        response = await getAIResponse(queryText, messages);
+      }
     }
+
     
     const aiMsg: Message = {
       id: Math.random().toString(),
@@ -420,6 +507,12 @@ export default function ChatOverlay() {
       setSelectedFile(file);
       setAttachmentType('file');
       setSelectedImage(null);
+      setFileTextContent(null);
+      if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
+        const reader = new FileReader();
+        reader.onload = () => setFileTextContent(String(reader.result || '').slice(0, 20000));
+        reader.readAsText(file);
+      }
     }
   };
 
@@ -428,7 +521,11 @@ export default function ChatOverlay() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setSelectedImage(reader.result as string);
+        const dataUrl = reader.result as string;
+        const [header, base64] = dataUrl.split(',', 2);
+        setSelectedImage(dataUrl);
+        setImageBase64(base64 || null);
+        setImageMimeType(header.match(/^data:(.*?);base64$/)?.[1] || file.type || null);
         setAttachmentType('image');
         setSelectedFile(file);
       };
@@ -439,6 +536,9 @@ export default function ChatOverlay() {
   const cancelAttachment = () => {
     setSelectedFile(null);
     setSelectedImage(null);
+    setImageBase64(null);
+    setImageMimeType(null);
+    setFileTextContent(null);
     setAttachmentType(null);
   };
 
@@ -847,7 +947,13 @@ export default function ChatOverlay() {
               <button
                 onClick={() => {
                   if (attachmentType && selectedFile) {
-                    handleSendMessage(inputText, { name: selectedFile.name, type: attachmentType });
+                    handleSendMessage(inputText, {
+                      name: selectedFile.name,
+                      type: attachmentType,
+                      imageBase64: imageBase64 || undefined,
+                      imageMimeType: imageMimeType || undefined,
+                      fileTextContent: fileTextContent || undefined
+                    });
                   } else {
                     handleSendMessage(inputText);
                   }
